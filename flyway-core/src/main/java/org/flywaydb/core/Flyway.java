@@ -21,6 +21,7 @@ import org.flywaydb.core.api.MigrationInfoService;
 import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.callback.FlywayCallback;
 import org.flywaydb.core.api.resolver.MigrationResolver;
+import org.flywaydb.core.api.resolver.ResolvedMigration;
 import org.flywaydb.core.internal.callback.SqlScriptFlywayCallback;
 import org.flywaydb.core.internal.command.DbBaseline;
 import org.flywaydb.core.internal.command.DbClean;
@@ -55,6 +56,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * This is the centre point of Flyway, and for most users, the only class they will ever have to deal with.
@@ -842,6 +845,26 @@ public class Flyway {
     public void setResolversAsClassNames(String... resolvers) {
         List<MigrationResolver> resolverList = ClassUtils.instantiateAll(resolvers, classLoader);
         this.resolvers = resolverList.toArray(new MigrationResolver[resolvers.length]);
+    }
+
+    /**
+     * Gets an immutable copy of the resolved migrations.
+     *
+     * @return an immutable collection of resolved migrations.
+     */
+    public Collection<ResolvedMigration> getResolvedMigrations() {
+        final ArrayList<ResolvedMigration> resolvedMigrations = new ArrayList<ResolvedMigration>();
+        execute(new Command<Integer>() {
+            @Override
+            public Integer execute(Connection connectionMetaDataTable, Connection connectionUserObjects,
+                                   DbSupport dbSupport, Schema[] schemas) {
+                MigrationResolver migrationResolver = createMigrationResolver(dbSupport);
+                final Collection<ResolvedMigration> migrations = migrationResolver.resolveMigrations();
+                resolvedMigrations.addAll(Collections.unmodifiableCollection(migrations));
+                return 0;
+            }
+        });
+        return resolvedMigrations;
     }
 
     /**

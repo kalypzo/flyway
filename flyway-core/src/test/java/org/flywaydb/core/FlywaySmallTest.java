@@ -16,6 +16,7 @@
 package org.flywaydb.core;
 
 import org.flywaydb.core.api.FlywayException;
+import org.flywaydb.core.api.resolver.ResolvedMigration;
 import org.flywaydb.core.internal.dbsupport.DbSupport;
 import org.flywaydb.core.internal.dbsupport.Schema;
 import org.flywaydb.core.internal.resolver.MyCustomMigrationResolver;
@@ -24,6 +25,7 @@ import org.junit.Test;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.util.Collection;
 import java.util.Properties;
 
 import static org.junit.Assert.*;
@@ -193,4 +195,19 @@ public class FlywaySmallTest {
             //expected
         }
     }
+
+    @Test
+    public void getResolvedSQLMigrations() {
+        final DriverDataSource dataSource =
+                new DriverDataSource(Thread.currentThread().getContextClassLoader(), null,
+                        "jdbc:h2:mem:flyway_db_resolvedMigrations;DB_CLOSE_DELAY=-1", "sa", null);
+
+        final Flyway flyway = new Flyway();
+        flyway.setDataSource(dataSource);
+        flyway.setLocations("migration/sql");
+
+        final Collection<ResolvedMigration> migrations = flyway.getResolvedMigrations();
+        assertEquals(flyway.info().all().length, migrations.size());
+    }
+
 }
