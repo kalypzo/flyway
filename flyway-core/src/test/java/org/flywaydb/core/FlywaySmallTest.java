@@ -27,6 +27,9 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.util.Collection;
 import java.util.Properties;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Collections;
 
 import static org.junit.Assert.*;
 
@@ -208,6 +211,59 @@ public class FlywaySmallTest {
 
         final Collection<ResolvedMigration> migrations = flyway.getResolvedMigrations();
         assertEquals(flyway.info().all().length, migrations.size());
+    }
+
+    @Test
+    public void setComparator() {
+        final DriverDataSource dataSource =
+                new DriverDataSource(Thread.currentThread().getContextClassLoader(), null,
+                        "jdbc:h2:mem:flyway_db_comparator;DB_CLOSE_DELAY=-1", "sa", null);
+
+        final Flyway flyway = new Flyway();
+        flyway.setDataSource(dataSource);
+        flyway.setLocations("migration/sql");
+
+        final ArrayList<String> actualOrder = new ArrayList<String>();
+        final ArrayList<String> expectedOrder = new ArrayList<String>();
+        for (ResolvedMigration resolvedMigration : flyway.getResolvedMigrations()) {
+            actualOrder.add(resolvedMigration.getScript());
+            expectedOrder.add(resolvedMigration.getScript());
+        }
+
+        assertEquals(expectedOrder, actualOrder);
+
+        actualOrder.clear();
+        assertEquals(0, actualOrder.size());
+
+        final String sqlMigrationSeparator = flyway.getSqlMigrationSeparator();
+
+        // Set up string comparator
+        final Comparator<String> migrationScriptComparator = new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+                int i1 = o1.lastIndexOf(sqlMigrationSeparator) + 1;
+                int i2 = o2.lastIndexOf(sqlMigrationSeparator) + 1;
+                return o1.substring(i1).compareTo(o2.substring(i2));
+            }
+        };
+
+        // Compare resolved migrations using migration script comparator
+        final Comparator<ResolvedMigration> resolvedMigrationComparator = new Comparator<ResolvedMigration>() {
+            @Override
+            public int compare(ResolvedMigration o1, ResolvedMigration o2) {
+                return migrationScriptComparator.compare(o1.getScript(), o2.getScript());
+            }
+        };
+
+        // Re-sort entries
+        Collections.sort(expectedOrder, migrationScriptComparator);
+        flyway.setComparator(resolvedMigrationComparator);
+
+        for (ResolvedMigration resolvedMigration : flyway.getResolvedMigrations()) {
+            actualOrder.add(resolvedMigration.getScript());
+        }
+
+        assertEquals(expectedOrder, actualOrder);
     }
 
 }

@@ -58,6 +58,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 
 /**
  * This is the centre point of Flyway, and for most users, the only class they will ever have to deal with.
@@ -251,6 +252,11 @@ public class Flyway {
      * Whether the database connection info has already been printed in the logs.
      */
     private boolean dbConnectionInfoPrinted;
+
+    /**
+     * The comparator to use for migrations
+     */
+    private Comparator<ResolvedMigration> resolvedMigrationComparator;
 
     /**
      * Creates a new instance of Flyway. This is your starting point.
@@ -868,6 +874,15 @@ public class Flyway {
     }
 
     /**
+     * Sets the comparator for resolved migrations, ignoring the default order by version number
+     *
+     * @param comparator A comparator used for ordering migrations.
+     */
+    public void setComparator(Comparator<ResolvedMigration> comparator) {
+        resolvedMigrationComparator = comparator;
+    }
+
+    /**
      * <p>Starts the database migration. All pending migrations will be applied in order.
      * Calling migrate on an up-to-date database has no effect.</p>
      * <img src="http://flywaydb.org/assets/balsamiq/command-migrate.png" alt="migrate">
@@ -1083,9 +1098,14 @@ public class Flyway {
      * @return A new, fully configured, MigrationResolver instance.
      */
     private MigrationResolver createMigrationResolver(DbSupport dbSupport) {
-        return new CompositeMigrationResolver(dbSupport, classLoader, locations,
+        final CompositeMigrationResolver cmr = new CompositeMigrationResolver(dbSupport, classLoader, locations,
                 encoding, sqlMigrationPrefix, sqlMigrationSeparator, sqlMigrationSuffix, createPlaceholderReplacer(),
                 resolvers);
+
+        if (resolvedMigrationComparator != null)
+            cmr.setMigrationComparator(resolvedMigrationComparator);
+
+        return cmr;
     }
 
     /**
